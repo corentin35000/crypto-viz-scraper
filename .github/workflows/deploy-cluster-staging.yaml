@@ -1,0 +1,30 @@
+name: build_deploy
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+jobs:
+  build_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Connect to the cluster K3S for deploy - Staging
+        uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
+        with:
+          args: |
+            apply -f k8s/staging/namespace.yaml
+            -f k8s/staging/certificate.yaml
+            -f k8s/staging/configmap.yaml
+            -f k8s/staging/deployment.yaml
+            -f k8s/staging/secret.yaml
+            -f k8s/staging/ingress.yaml
+            -f k8s/staging/service.yaml
+            -f k8s/staging/pv.yaml
+            -f k8s/staging/pvc.yaml

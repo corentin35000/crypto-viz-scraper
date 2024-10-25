@@ -1,0 +1,13 @@
+# Configurer le chemin des fichiers sources
+[build]
+cmd = "go build -o tmp/main ."  # compilation de l'application
+bin = "tmp/main"                # emplacement du binaire
+watch_dir = "./src"             # dossier à surveiller
+
+# Configurer les fichiers à surveiller pour le rechargement
+[watch]
+include = ["**/*.go"]
+exclude_dir = ["vendor", "tmp"]
+
+# Délai avant redémarrage (définir à 0 pour un rechargement immédiat)
+delay = 0
