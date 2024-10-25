@@ -14,5 +14,8 @@ RUN go mod download
 # Copier le reste des fichiers de l'application
 COPY . .
 
+# Installer Air pour le rechargement automatique
+RUN go install github.com/air-verse/air@latest
+
 # Étape 2 : Exécution
-CMD ["air", "-c", ".air.toml"]
+CMD air -c .air.toml

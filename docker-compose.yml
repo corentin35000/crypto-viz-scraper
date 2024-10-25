@@ -1,6 +1,6 @@
 services:
   go:
-    container_name: go
+    container_name: go-scraper
     image: cryptoviz/scraper:develop
     restart: always
     build:
@@ -8,7 +8,4 @@ services:
       dockerfile: Dockerfile
     volumes:
       - .:/app             # Monte le répertoire local dans le conteneur
-      - /app/tmp           # Emplacement temporaire pour le fichier binaire compilé
-    working_dir: /app/src  # Répertoire de travail pour le code source
-    ports:
-      - "8080:8080"        # Expose le port 8080 si nécessaire
+    working_dir: /app      # Répertoire de travail pour le code source

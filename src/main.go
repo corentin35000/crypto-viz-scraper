@@ -1,15 +1,13 @@
-// Point d'entrée de l'application
-
 package main
 
 import (
-	"github.com/air-verse/air"
-	"github.com/gocolly/colly/v2"
-	"github.com/nats-io/nats.go"
+	"fmt"
+
+	_ "github.com/gocolly/colly/v2"
+	_ "github.com/nats-io/nats.go"
 )
 
+// Point d'entrée de l'application
 func main() {
-	_ = colly.NewCollector()             // Utilisation minimale de Colly
-	_ = air.RootCmd                      // Utilisation minimale d'Air
-	_, _ = nats.Connect(nats.DefaultURL) // Utilisation minimale de NATS
+	fmt.Println("Hello, world!")
 }
