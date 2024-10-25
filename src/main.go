@@ -9,5 +9,5 @@ import (
 
 // Point d'entrée de l'application
 func main() {
-	fmt.Println("Hello, world!")
+	fmt.Println("Hello world !")
 }
