@@ -7,5 +7,5 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - .:/app             # Monte le répertoire local dans le conteneur
-    working_dir: /app      # Répertoire de travail pour le code source
+      - .:/app
+    working_dir: /app
