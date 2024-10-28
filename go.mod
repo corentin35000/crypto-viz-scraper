@@ -4,6 +4,7 @@ go 1.23.2
 
 require (
 	github.com/gocolly/colly/v2 v2.1.0
+	github.com/joho/godotenv v1.5.1
 	github.com/nats-io/nats.go v1.37.0
 )
 
