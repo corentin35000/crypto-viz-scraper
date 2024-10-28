@@ -37,7 +37,7 @@ func NewNatsService(natsURL string) (*NatsService, error) {
 	if err != nil {
 		return nil, fmt.Errorf("erreur de connexion à NATS : %v", err)
 	} else {
-		fmt.Println("Connexion établie avec le serveur NATS")
+		fmt.Println("Connexion établie avec le serveur NATS :", nc.ConnectedUrl())
 	}
 
 	// Retourne une nouvelle instance de NatsService
