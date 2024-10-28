@@ -40,7 +40,7 @@ func RunScraper() {
 		// Démarrer le scraping
 		collyService.ScrapeNews("https://www.coindesk.com/", natsService)
 
-		// Attendre 1 minute avant le prochain cycle de scraping
-		time.Sleep(1 * time.Minute)
+		// Attendre 2 minute avant le prochain cycle de scraping
+		time.Sleep(2 * time.Minute)
 	}
 }
