@@ -18,10 +18,27 @@ func main() {
 		log.Fatalf("Erreur de chargement du fichier .env : %v", err)
 	}
 
-	// Get the value of the NATS_SERVER_URL environment variable
+	// Obtenir l'URL du serveur NATS depuis les variables d'environnement
 	natsURL := os.Getenv("NATS_SERVER_URL")
-	NewNatsService(natsURL)
+	if natsURL == "" {
+		log.Fatal("NATS_SERVER_URL n'est pas défini dans les variables d'environnement")
+	}
 
-	// Print a message
+	// Créer une nouvelle instance de NatsService
+	natsService, err := NewNatsService(natsURL)
+	if err != nil {
+		// Log error and exit
+		log.Fatalf("Erreur lors de la création de NatsService : %v", err)
+	} else {
+		// Log success message
+		fmt.Println("NatsService créé avec succès")
+
+		// S'abonner à un sujet for testing
+		natsService.Subscribe("test", func(message string) {
+			fmt.Println("Message reçu : ", message)
+		})
+	}
+
+	// Print a message for testing
 	fmt.Printf("Hello, world!\n")
 }
