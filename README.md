@@ -51,8 +51,7 @@ crypto-viz-scraper/ <br />
     ├── main.go           `# Point d'entrée de l'application` <br />
     ├── collector.go      `# Configuration et gestion du collecteur Colly` <br />
     ├── processor.go      `# Logique de traitement des données scrappées` <br />
-    ├── publisher.go      `# Envoi des données vers le broker (Producteur/Consommateur)` <br />
-    └── config.go         `# Configuration globale de l'application`
+    ├── nats.go           `# Envoi des données vers le broker (Producteur/Consommateur)` <br />
 
 <br /><br /><br /><br />
 
