@@ -34,11 +34,8 @@ func main() {
 		fmt.Println("NatsService créé avec succès")
 
 		// S'abonner à un sujet for testing
-		natsService.Subscribe("test", func(message string) {
+		natsService.Subscribe("crypto.news", func(message string) {
 			fmt.Println("Message reçu : ", message)
 		})
 	}
-
-	// Print a message for testing
-	fmt.Printf("Hello, world!\n")
 }
