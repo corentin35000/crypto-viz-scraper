@@ -98,7 +98,7 @@ func (natsService *NatsService) Publish(subject string, message string) error {
 	if err := natsService.nc.Publish(subject, []byte(message)); err != nil {
 		return fmt.Errorf("échec de la publication sur %s : %v", subject, err)
 	} else {
-		fmt.Printf("Message publié sur %s\n", subject)
+		fmt.Printf("Message publié sur le server NATS pour le subject : %s\n", subject)
 	}
 
 	// Retourne nil pour indiquer le succès

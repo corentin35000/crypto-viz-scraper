@@ -38,7 +38,7 @@ func RunScraper() {
 	// Boucle infinie pour effectuer le scraping en continu
 	for {
 		// Démarrer le scraping
-		collyService.ScrapeNews("https://example.com/news", natsService)
+		collyService.ScrapeNews("https://www.coindesk.com/", natsService)
 
 		// Attendre 1 minute avant le prochain cycle de scraping
 		time.Sleep(1 * time.Minute)
