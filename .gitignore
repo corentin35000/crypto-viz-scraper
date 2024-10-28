@@ -1,3 +1,5 @@
 .vscode
 .idea
 tmp
+go-scraper
+go-scraper.exe
