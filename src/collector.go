@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -10,10 +11,24 @@ import (
 
 /**
  * CollyService est une structure qui encapsule le collecteur Colly pour le scraping de données.
+ * @property {colly.Collector} collector - Instance du collecteur Colly pour le scraping.
+ * @property {chan error} errChan - Canal pour signaler les erreurs pendant le scraping.
  */
 type CollyService struct {
 	collector *colly.Collector
 	errChan   chan error // Canal pour signaler les erreurs
+}
+
+/**
+ * News est une structure pour stocker les informations sur les actualités des cryptomonnaies.
+ * @property {string} Title - Titre de l'actualité.
+ * @property {string} Link - Lien vers l'actualité.
+ * @property {string} Description - Description de l'actualité.
+ */
+type News struct {
+	Title       string `json:"title"`
+	Link        string `json:"link"`
+	Description string `json:"description"`
 }
 
 /**
@@ -71,12 +86,25 @@ func (collyService *CollyService) ScrapeNews(url string, natsService *NatsServic
 					}
 				})
 
-				// Affiche le titre, lien et description
+				// DEBUG : Affiche le titre, lien et description
 				fmt.Printf("Titre : %s\nLien : %s\nDescription : %s\n\n", title, link, description)
 
-				// Publier les informations via NatsService
-				message := fmt.Sprintf("Titre: %s\nLien: %s\nDescription: %s", title, link, description)
-				if err := natsService.Publish("crypto.news", message); err != nil {
+				// Créez une instance de News avec les données extraites
+				news := News{
+					Title:       title,
+					Link:        link,
+					Description: description,
+				}
+
+				// Sérialisez l'instance News en JSON
+				message, err := json.Marshal(news)
+				if err != nil {
+					fmt.Printf("Erreur lors de la conversion en JSON : %v\n", err)
+					return
+				}
+
+				// Publier le message JSON via NatsService
+				if err := natsService.Publish("crypto.news", string(message)); err != nil {
 					fmt.Printf("Erreur lors de la publication sur NATS : %v\n", err)
 				}
 			})
