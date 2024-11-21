@@ -65,74 +65,68 @@ func NewCollyService() *CollyService {
  * @param {string} url - L'URL de la page à scraper.
  */
 func (collyService *CollyService) ScrapeNews(url string, natsService *NatsService) {
-	// Exécuter le scraping dans une goroutine
-	go func() {
-		// Afficher un message de démarrage
-		fmt.Println("Démarrage du scraping des actualités depuis :", url)
+	// Afficher un message de démarrage
+	fmt.Println("Démarrage du scraping des actualités depuis :", url)
 
-		// Callback pour la div principale avec la classe `sc-dkzDqf cTsMI`
-		collyService.collector.OnHTML("div.sc-dkzDqf.cTsMI", func(e *colly.HTMLElement) {
-			// Pour chaque div enfant dans la div principale
-			e.ForEach("div", func(_ int, newsDiv *colly.HTMLElement) {
-				// Récupérer le premier <a> comme titre et lien
-				title := newsDiv.ChildText("a")        // Titre provenant du premier <a>
-				link := newsDiv.ChildAttr("a", "href") // Lien provenant de l'attribut href du premier <a>
+	// Callback pour la div principale avec la classe `sc-dkzDqf cTsMI`
+	collyService.collector.OnHTML("div.sc-dkzDqf.cTsMI", func(e *colly.HTMLElement) {
+		e.ForEach("div", func(_ int, newsDiv *colly.HTMLElement) {
+			title := newsDiv.ChildText("a")
+			link := newsDiv.ChildAttr("a", "href")
 
-				// Récupération de la description depuis la deuxième div enfant
-				var description string
-				newsDiv.ForEach("div", func(index int, descDiv *colly.HTMLElement) {
-					if index == 1 { // Index 1 pour la deuxième div enfant
-						description = descDiv.Text
-					}
-				})
-
-				// DEBUG : Affiche le titre, lien et description
-				fmt.Printf("Titre : %s\nLien : %s\nDescription : %s\n\n", title, link, description)
-
-				// Créez une instance de News avec les données extraites
-				news := News{
-					Title:       title,
-					Link:        link,
-					Description: description,
-				}
-
-				// Sérialisez l'instance News en JSON
-				message, err := json.Marshal(news)
-				if err != nil {
-					fmt.Printf("Erreur lors de la conversion en JSON : %v\n", err)
-					return
-				}
-
-				// Publier le message JSON via NatsService
-				if err := natsService.Publish("crypto.news", string(message)); err != nil {
-					fmt.Printf("Erreur lors de la publication sur NATS : %v\n", err)
+			// Récupération de la description depuis la deuxième div enfant
+			var description string
+			newsDiv.ForEach("div", func(index int, descDiv *colly.HTMLElement) {
+				if index == 1 {
+					description = descDiv.Text
 				}
 			})
-		})
 
-		// Gestion des erreurs pendant le scraping
-		collyService.collector.OnError(func(_ *colly.Response, err error) {
-			log.Printf("Erreur pendant le scraping : %v", err)
-			// Vérifier que le canal n'est pas fermé avant d'envoyer une erreur
-			select {
-			case collyService.errChan <- err:
-			default:
-				fmt.Println("Canal d'erreurs déjà fermé")
+			// DEBUG : Affiche le titre, lien et description
+			fmt.Printf("Titre : %s\nLien : %s\nDescription : %s\n\n", title, link, description)
+
+			// Créez une instance de News avec les données extraites
+			news := News{
+				Title:       title,
+				Link:        link,
+				Description: description,
+			}
+
+			// Sérialisez l'instance News en JSON
+			message, err := json.Marshal(news)
+			if err != nil {
+				fmt.Printf("Erreur lors de la conversion en JSON : %v\n", err)
+				return
+			}
+
+			// Publier le message JSON via NatsService
+			if err := natsService.Publish("crypto.news", string(message)); err != nil {
+				fmt.Printf("Erreur lors de la publication sur NATS : %v\n", err)
 			}
 		})
+	})
 
-		// Démarrer le scraping et capturer les erreurs
-		if err := collyService.collector.Visit(url); err != nil {
-			select {
-			case collyService.errChan <- err:
-			default:
-				fmt.Println("Canal d'erreurs déjà fermé")
-			}
+	// Gestion des erreurs pendant le scraping
+	collyService.collector.OnError(func(_ *colly.Response, err error) {
+		log.Printf("Erreur pendant le scraping : %v", err)
+		select {
+		case collyService.errChan <- err:
+		default:
+			fmt.Println("Canal d'erreurs déjà fermé")
 		}
+	})
 
-		// Attendre la fin des requêtes asynchrones
-		collyService.collector.Wait()
-	}()
+	// Démarrer le scraping et capturer les erreurs
+	if err := collyService.collector.Visit(url); err != nil {
+		select {
+		case collyService.errChan <- err:
+		default:
+			fmt.Println("Canal d'erreurs déjà fermé")
+		}
+	}
+
+	// Attendre la fin des requêtes asynchrones
+	collyService.collector.Wait()
 }
 
 /**

@@ -2,5 +2,5 @@ package main
 
 // Point d'entrée de l'application
 func main() {
-	RunScraper()
+	RunScraper(1)
 }

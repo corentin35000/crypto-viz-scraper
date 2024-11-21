@@ -11,9 +11,10 @@ import (
 /**
  * RunScraper initialise les services NATS et Colly, et lance le scraping en continu.
  * Cette fonction est appelée depuis le point d'entrée de l'application.
+ * @param {int} intervalMinutes - Intervalle de temps en minutes entre chaque cycle de scraping
  * return {void}
  */
-func RunScraper() {
+func RunScraper(intervalMinutes int) {
 	// Charger le fichier .env
 	err := godotenv.Load()
 	if err != nil {
@@ -32,15 +33,18 @@ func RunScraper() {
 		log.Fatalf("Erreur lors de la création de NatsService : %v", err)
 	}
 
-	// Créer une nouvelle instance de CollyService pour le scraping
-	collyService := NewCollyService()
-
 	// Boucle infinie pour effectuer le scraping en continu
 	for {
+		// Créer une nouvelle instance de CollyService pour le scraping
+		collyService := NewCollyService()
+
 		// Démarrer le scraping
 		collyService.ScrapeNews("https://www.coindesk.com/", natsService)
 
+		// Fermeture explicite du canal après le cycle complet
+		close(collyService.errChan)
+
 		// Attendre 2 minute avant le prochain cycle de scraping
-		time.Sleep(2 * time.Minute)
+		time.Sleep(time.Duration(intervalMinutes) * time.Minute)
 	}
 }
