@@ -39,7 +39,8 @@ func RunScraper(intervalMinutes int) {
 		collyService := NewCollyService()
 
 		// Démarrer le scraping
-		collyService.ScrapeNews("https://www.coindesk.com/", natsService)
+		collyService.ScrapeNews("https://cryptoast.fr/actu/bitcoin/", natsService)
+		collyService.ScrapeNews("https://cryptoast.fr/actu/ethereum/", natsService)
 
 		// Fermeture explicite du canal après le cycle complet
 		close(collyService.errChan)

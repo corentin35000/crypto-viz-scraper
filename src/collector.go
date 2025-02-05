@@ -23,12 +23,14 @@ type CollyService struct {
  * News est une structure pour stocker les informations sur les actualités des cryptomonnaies.
  * @property {string} Title - Titre de l'actualité.
  * @property {string} Link - Lien vers l'actualité.
- * @property {string} Description - Description de l'actualité.
+ * @property {string} Content - Description de l'actualité.
+ * @property {string} Image - Lien de l'image principale de l'actualité.
  */
 type News struct {
-	Title       string `json:"title"`
-	Link        string `json:"link"`
-	Description string `json:"description"`
+	Title   string `json:"title"`
+	Link    string `json:"link"`
+	Content string `json:"content"`
+	Image   string `json:"image"`
 }
 
 /**
@@ -36,77 +38,48 @@ type News struct {
  * @return {CollyService} - Retourne une instance configurée de CollyService.
  */
 func NewCollyService() *CollyService {
-	// Configuration de base du collecteur
+	// Configuration du collecteur
 	c := colly.NewCollector(
-		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"), // User-Agent pour éviter le blocage
-		colly.IgnoreRobotsTxt(), // Ignorer les règles du fichier robots.txt
-		colly.MaxDepth(1),       // Limiter la profondeur de recherche à 1 pour éviter les liens externes
-		colly.Async(true),       // Activer le mode asynchrone pour le scraping
-		colly.CacheDir("./tmp"), // Définir le répertoire de cache pour éviter de re-scraper les pages
-		colly.DetectCharset(),   // Détecter automatiquement l'encodage de la page
+		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"),
+		colly.IgnoreRobotsTxt(),
+		colly.MaxDepth(2), // Aller jusqu'à la page article
+		colly.Async(true),
+		colly.DetectCharset(),
 	)
 
-	// Définition des limites de requêtes pour éviter les blocages
+	// Définition des limites pour éviter d'être bloqué
 	c.Limit(&colly.LimitRule{
-		DomainGlob:  "*",             // Applique cette règle à tous les domaines visités par le collecteur
-		Parallelism: 2,               // Limite à 2 requêtes simultanées pour ne pas surcharger le serveur
-		Delay:       2 * time.Second, // Attente de 2 secondes entre chaque requête pour éviter un blocage par le serveur
+		DomainGlob:  "*",
+		Parallelism: 2,
+		Delay:       2 * time.Second,
 	})
 
-	// Retourne une nouvelle instance de CollyService avec un canal d'erreur
+	// Retourne une nouvelle instance de CollyService
 	return &CollyService{
 		collector: c,
-		errChan:   make(chan error), // Initialiser le canal d'erreurs
+		errChan:   make(chan error),
 	}
 }
 
 /**
- * ScrapeNews lance le scraping des actualités sur les cryptomonnaies depuis une URL donnée dans une goroutine.
+ * ScrapeNews récupère les liens des articles depuis la page principale puis scrape chaque article individuellement.
  * @param {string} url - L'URL de la page à scraper.
  */
 func (collyService *CollyService) ScrapeNews(url string, natsService *NatsService) {
-	// Afficher un message de démarrage
 	fmt.Println("Démarrage du scraping des actualités depuis :", url)
 
-	// Callback pour la div principale avec la classe `sc-dkzDqf cTsMI`
-	collyService.collector.OnHTML("div.sc-dkzDqf.cTsMI", func(e *colly.HTMLElement) {
-		e.ForEach("div", func(_ int, newsDiv *colly.HTMLElement) {
-			title := newsDiv.ChildText("a")
-			link := newsDiv.ChildAttr("a", "href")
+	// Scraping de la liste des articles
+	collyService.collector.OnHTML("div#article-grid", func(e *colly.HTMLElement) {
+		e.ForEach("a", func(_ int, element *colly.HTMLElement) {
+			articleURL := element.Request.AbsoluteURL(element.Attr("href")) // Récupérer le lien absolu de l'article
+			fmt.Println("Article trouvé :", articleURL)
 
-			// Récupération de la description depuis la deuxième div enfant
-			var description string
-			newsDiv.ForEach("div", func(index int, descDiv *colly.HTMLElement) {
-				if index == 1 {
-					description = descDiv.Text
-				}
-			})
-
-			// DEBUG : Affiche le titre, lien et description
-			fmt.Printf("Titre : %s\nLien : %s\nDescription : %s\n\n", title, link, description)
-
-			// Créez une instance de News avec les données extraites
-			news := News{
-				Title:       title,
-				Link:        link,
-				Description: description,
-			}
-
-			// Sérialisez l'instance News en JSON
-			message, err := json.Marshal(news)
-			if err != nil {
-				fmt.Printf("Erreur lors de la conversion en JSON : %v\n", err)
-				return
-			}
-
-			// Publier le message JSON via NatsService
-			if err := natsService.Publish("crypto.news", string(message)); err != nil {
-				fmt.Printf("Erreur lors de la publication sur NATS : %v\n", err)
-			}
+			// Scraper l'article
+			collyService.ScrapeArticle(articleURL, natsService)
 		})
 	})
 
-	// Gestion des erreurs pendant le scraping
+	// Gestion des erreurs
 	collyService.collector.OnError(func(_ *colly.Response, err error) {
 		log.Printf("Erreur pendant le scraping : %v", err)
 		select {
@@ -116,7 +89,7 @@ func (collyService *CollyService) ScrapeNews(url string, natsService *NatsServic
 		}
 	})
 
-	// Démarrer le scraping et capturer les erreurs
+	// Lancer le scraping
 	if err := collyService.collector.Visit(url); err != nil {
 		select {
 		case collyService.errChan <- err:
@@ -130,9 +103,66 @@ func (collyService *CollyService) ScrapeNews(url string, natsService *NatsServic
 }
 
 /**
- * ErrorChannel retourne le canal d'erreurs pour le scraping.
- * @return {<-chan error} - Canal en lecture seule pour les erreurs de scraping.
+ * ScrapeArticle récupère les informations d'un article donné.
+ * @param {string} articleURL - URL de l'article à scraper.
  */
-func (collyService *CollyService) ErrorChannel() <-chan error {
-	return collyService.errChan
+func (collyService *CollyService) ScrapeArticle(articleURL string, natsService *NatsService) {
+	// Création d'un nouveau collecteur pour éviter les conflits
+	articleCollector := colly.NewCollector(
+		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"),
+		colly.IgnoreRobotsTxt(),
+		colly.Async(true),
+		colly.DetectCharset(),
+	)
+
+	// Structure pour stocker l'article
+	var news News
+	news.Link = articleURL
+
+	// Récupérer le titre
+	articleCollector.OnHTML("h1.article-title", func(e *colly.HTMLElement) {
+		news.Title = e.Text
+	})
+
+	// Récupérer le contenu
+	articleCollector.OnHTML("div.article-content > h4.article-subtitle, div.article-content > p", func(e *colly.HTMLElement) {
+		// Vérifier si ce n'est pas le titre déjà stocké
+		if e.Text != news.Title {
+			news.Content += e.Text + "\n"
+		}
+	})
+
+	// Récupérer l'image principale
+	articleCollector.OnHTML("img.main-illustration", func(e *colly.HTMLElement) {
+		news.Image = e.Attr("src")
+	})
+
+	// Callback après le scraping de la page
+	articleCollector.OnScraped(func(_ *colly.Response) {
+		// Vérifier que les champs ne sont pas vides
+		if news.Title == "" || news.Content == "" || news.Image == "" {
+			fmt.Println("Données incomplètes, article ignoré :", news.Link)
+			return
+		}
+
+		// Afficher les résultats
+		fmt.Printf("Article scrappé :\nTitre : %s\nLien : %s\nImage : %s \nContenu : %s\n", news.Title, news.Link, news.Image, news.Content)
+
+		// Convertir l'article en JSON
+		message, err := json.Marshal(news)
+		if err != nil {
+			fmt.Printf("Erreur lors de la conversion en JSON : %v\n", err)
+			return
+		}
+
+		// Publier sur NATS
+		if err := natsService.Publish("crypto.news", string(message)); err != nil {
+			fmt.Printf("Erreur lors de la publication sur NATS : %v\n", err)
+		}
+	})
+
+	// Lancer le scraping
+	if err := articleCollector.Visit(articleURL); err != nil {
+		fmt.Printf("Erreur lors de la visite de l'article : %v\n", err)
+	}
 }
